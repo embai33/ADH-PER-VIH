@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1a5276">
+<title>Adherencia y persistencia TAR</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!--MOTOR-->
+<script src="motor.js"></script>
+<!--/MOTOR-->
+<style>
+:root {
+  --azul: #1a5276;
+  --azul-claro: #2980b9;
+  --gris-fondo: #f4f6f9;
+  --gris-borde: #dce1e8;
+  --blanco: #ffffff;
+  --texto: #2c3e50;
+  --texto-sec: #5d6d7e;
+  --verde: #27ae60;
+  --rojo: #c0392b;
+  --naranja: #e67e22;
+  --radius: 8px;
+  /* Series categóricas (orden fijo validado para daltonismo) */
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  background: var(--gris-fondo);
+  color: var(--texto);
+  font-size: 0.9rem;
+}
+header {
+  background: var(--azul); color: white; padding: 1rem 2rem;
+  display: flex; align-items: center; gap: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+header h1 { font-size: 1.4rem; font-weight: 600; margin: 0; }
+header .sub { font-size: 0.85rem; opacity: 0.8; }
+header .info-btn {
+  margin-left: auto; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.4);
+  width: 34px; height: 34px; border-radius: 50%; font-size: 1rem; cursor: pointer; flex-shrink: 0;
+}
+header .info-btn:hover { background: rgba(255,255,255,0.3); }
+.container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+.panel {
+  background: var(--blanco); padding: 1.5rem; border-radius: var(--radius);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 1.5rem;
+}
+.panel h2 { font-size: 1.1rem; font-weight: 700; color: var(--azul); margin: 0 0 1rem; }
+.panel h3 { font-size: 1rem; font-weight: 700; color: var(--azul); margin: 1.5rem 0 0.6rem; }
+.hint { color: var(--texto-sec); font-size: 0.85rem; }
+.hidden { display: none !important; }
+
+/* Botones */
+.btn { padding: 0.6rem 1.2rem; border: none; border-radius: var(--radius); font-size: 0.95rem; cursor: pointer; font-weight: 500; transition: background 0.2s; }
+.btn-primary { background: var(--azul-claro); color: white; }
+.btn-primary:hover { background: var(--azul); }
+.btn-primary:disabled { background: #a9c7de; cursor: not-allowed; }
+.btn-secondary { background: var(--gris-borde); color: var(--texto); }
+.btn-secondary:hover { background: #c5ccd6; }
+.btn-export { background: transparent; color: var(--verde); border: 1px solid var(--verde); }
+.btn-export:hover { background: var(--verde); color: white; }
+.btn-clear { background: none; color: var(--texto-sec); }
+.btn-clear:hover { color: var(--rojo); }
+.btn-sm { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
+.link { background: none; border: none; color: var(--azul-claro); cursor: pointer; padding: 0; font: inherit; text-decoration: underline; }
+.acciones { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+
+/* Formularios */
+label.lbl, .lbl { display: block; font-size: 0.75rem; font-weight: 600; color: var(--texto-sec); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+input, select { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--gris-borde); border-radius: var(--radius); font-size: 0.9rem; background: var(--blanco); color: var(--texto); font-family: inherit; }
+input:focus, select:focus { outline: none; border-color: var(--azul-claro); box-shadow: 0 0 0 3px rgba(41,128,185,0.15); }
+input[type=checkbox], input[type=radio] { width: auto; }
+.filters-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1.5rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem 1.5rem; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem 1rem; }
+.campo { min-width: 0; }
+.segmento { display: inline-flex; border: 1px solid var(--gris-borde); border-radius: var(--radius); overflow: hidden; flex-wrap: wrap; }
+.segmento button { border: none; background: var(--blanco); padding: 0.45rem 0.9rem; cursor: pointer; font-size: 0.85rem; color: var(--texto); border-right: 1px solid var(--gris-borde); }
+.segmento button:last-child { border-right: none; }
+.segmento button.activo { background: var(--azul-claro); color: white; }
+.rapidos { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.4rem; }
+.rapidos button { font-size: 0.75rem; padding: 0.15rem 0.55rem; border: 1px solid var(--gris-borde); background: var(--blanco); border-radius: 12px; cursor: pointer; color: var(--texto-sec); }
+.rapidos button:hover { border-color: var(--azul-claro); color: var(--azul-claro); }
+
+/* Lista de selección */
+.checklist { border: 1px solid var(--gris-borde); border-radius: var(--radius); }
+.checklist .cl-top { display: flex; gap: 0.5rem; padding: 0.5rem; border-bottom: 1px solid var(--gris-borde); align-items: center; }
+.checklist .cl-top input { flex: 1; }
+.checklist .cl-items { max-height: 230px; overflow-y: auto; padding: 0.3rem 0; }
+.checklist label.item { display: flex; gap: 0.5rem; align-items: flex-start; padding: 0.25rem 0.75rem; cursor: pointer; font-size: 0.85rem; }
+.checklist label.item:hover { background: var(--gris-fondo); }
+.checklist .txt { min-width: 0; overflow-wrap: anywhere; }
+.checklist .n { margin-left: auto; color: var(--texto-sec); font-size: 0.78rem; white-space: nowrap; padding-left: 0.5rem; }
+.checklist .cl-pie { font-size: 0.78rem; color: var(--texto-sec); padding: 0.35rem 0.75rem; border-top: 1px solid var(--gris-borde); }
+
+details.plegable { border: 1px solid var(--gris-borde); border-radius: var(--radius); margin-top: 1rem; }
+details.plegable > summary { cursor: pointer; padding: 0.65rem 1rem; font-weight: 600; color: var(--azul); list-style: none; }
+details.plegable > summary::before { content: '▸ '; }
+details.plegable[open] > summary::before { content: '▾ '; }
+details.plegable > .contenido { padding: 0 1rem 1rem; }
+
+/* Carga */
+.drop { border: 2px dashed var(--gris-borde); border-radius: var(--radius); padding: 2rem 1rem; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+.drop:hover, .drop.sobre { border-color: var(--azul-claro); background: #f0f7fc; }
+.drop strong { color: var(--azul); }
+
+/* Tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; }
+.tile { background: var(--gris-fondo); border-radius: var(--radius); padding: 0.75rem 0.9rem; border-left: 4px solid var(--azul-claro); }
+.tile .v { font-size: 1.35rem; font-weight: 700; color: var(--azul); line-height: 1.2; }
+.tile .k { font-size: 0.75rem; color: var(--texto-sec); text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; }
+.tile .d { font-size: 0.78rem; color: var(--texto-sec); }
+.tile.aviso { border-left-color: var(--naranja); }
+
+/* Mensajes */
+.msg-error { background: #fadbd8; color: #922b21; padding: 0.8rem 1rem; border-radius: var(--radius); margin: 0.75rem 0; }
+.msg-aviso { background: #fdebd0; color: #7e5109; padding: 0.7rem 1rem; border-radius: var(--radius); margin: 0.5rem 0; font-size: 0.85rem; }
+.msg-info { background: #d6eaf8; color: #1a5276; padding: 0.7rem 1rem; border-radius: var(--radius); margin: 0.5rem 0; font-size: 0.85rem; }
+.vacio { text-align: center; color: var(--texto-sec); padding: 3rem 1rem; }
+.cargando { text-align: center; padding: 2rem 1rem; color: var(--texto-sec); }
+.spinner { width: 28px; height: 28px; border: 3px solid var(--gris-borde); border-top-color: var(--azul-claro); border-radius: 50%; animation: gira 0.6s linear infinite; margin: 0 auto 0.6rem; }
+@keyframes gira { to { transform: rotate(360deg); } }
+
+/* Badges y etiquetas */
+.badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 10px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+.badge-green { background: #d5f5e3; color: #1e8449; }
+.badge-red { background: #fadbd8; color: #922b21; }
+.badge-orange { background: #fdebd0; color: #b9770e; }
+.badge-blue { background: #d6eaf8; color: #1a5276; }
+.badge-gray { background: var(--gris-borde); color: var(--texto-sec); }
+.filter-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.filter-tag { display: inline-flex; align-items: center; gap: 0.3rem; background: #eaf2f8; color: var(--azul); padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.78rem; }
+
+/* Pestañas */
+.tabs { display: flex; gap: 0.25rem; border-bottom: 2px solid var(--gris-borde); margin-bottom: 1.25rem; flex-wrap: wrap; }
+.tabs button { background: none; border: none; padding: 0.6rem 1rem; cursor: pointer; font-size: 0.92rem; font-weight: 600; color: var(--texto-sec); border-bottom: 3px solid transparent; margin-bottom: -2px; }
+.tabs button.activo { color: var(--azul); border-bottom-color: var(--azul-claro); }
+.tabs button .cnt { font-weight: 400; font-size: 0.78rem; }
+
+/* Tablas */
+.tabla-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th { background: var(--gris-fondo); text-align: left; padding: 0.5rem 0.65rem; font-size: 0.75rem; text-transform: uppercase; color: var(--texto-sec); letter-spacing: 0.03em; vertical-align: bottom; }
+th.ord { cursor: pointer; user-select: none; }
+th.ord:hover { color: var(--azul); }
+td { padding: 0.5rem 0.65rem; border-bottom: 1px solid var(--gris-borde); vertical-align: top; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.num { white-space: nowrap; }
+tr.clic { cursor: pointer; }
+tr.clic:hover td { background: #f7fafd; }
+tr.sub td { color: var(--texto-sec); }
+td.poco-fiable { color: var(--texto-sec); font-style: italic; }
+.paginacion { display: flex; justify-content: center; align-items: center; gap: 0.75rem; margin-top: 0.75rem; font-size: 0.85rem; color: var(--texto-sec); }
+.barra-tabla { display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 0.6rem; }
+.barra-tabla .campo { min-width: 200px; }
+.chip-serie { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 0.45rem; flex-shrink: 0; margin-top: 0.35em; }
+.el { display: inline-flex; align-items: flex-start; }
+
+/* Gráficos */
+.grafico { position: relative; height: 380px; }
+.grafico.bajo { height: 280px; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-size: 0.82rem; margin: 0.4rem 0 0.2rem; }
+.opciones-graf { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--texto-sec); align-items: center; margin-bottom: 0.5rem; }
+.opciones-graf label { display: inline-flex; gap: 0.35rem; align-items: center; cursor: pointer; }
+
+/* Consulta de paciente */
+.buscador-pac { display: flex; gap: 0.6rem; align-items: flex-end; flex-wrap: wrap; }
+.buscador-pac .campo { flex: 1; min-width: 200px; max-width: 360px; }
+.ficha { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.6rem 1.5rem; margin: 1rem 0; }
+.ficha .lbl { margin-bottom: 0.1rem; }
+.linea-tiempo { margin-top: 0.5rem; }
+.tl-fila { display: grid; grid-template-columns: minmax(120px, 30%) 1fr; gap: 0.75rem; align-items: center; min-height: 26px; border-bottom: 1px solid var(--gris-fondo); }
+.tl-lbl { font-size: 0.78rem; overflow-wrap: anywhere; line-height: 1.25; padding: 0.2rem 0; }
+.tl-fila svg { width: 100%; height: 16px; display: block; }
+.tl-eje { position: relative; height: 18px; font-size: 0.72rem; color: var(--texto-sec); }
+.tl-fila.eje { border-bottom: none; min-height: 18px; }
+.tl-eje span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.tl-leyenda { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.78rem; color: var(--texto-sec); margin-top: 0.4rem; }
+.tl-leyenda i { display: inline-block; width: 14px; height: 8px; border-radius: 2px; background: var(--azul-claro); margin-right: 0.3rem; vertical-align: middle; }
+.tl-leyenda i.disp { width: 2px; height: 12px; background: var(--azul); }
+.tl-leyenda i.fin { width: 2px; height: 12px; background: var(--naranja); }
+@media (max-width: 600px) { .tl-fila { grid-template-columns: 1fr; gap: 0; } .tl-fila.eje > div:first-child { display: none; } }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+.modal-box { background: var(--blanco); border-radius: var(--radius); max-width: 440px; width: 100%; padding: 1.5rem; box-shadow: 0 8px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
+.modal-box.ancho { max-width: 920px; }
+.modal-box h2 { font-size: 1.3rem; color: var(--azul); margin: 0 0 0.75rem; }
+.modal-cab { display: flex; align-items: flex-start; gap: 1rem; }
+.modal-cab .cerrar { margin-left: auto; background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--texto-sec); line-height: 1; }
+.modal-footer { border-top: 1px solid var(--gris-borde); margin-top: 1rem; padding-top: 0.8rem; font-size: 0.85rem; color: var(--texto-sec); display: flex; gap: 0.4rem; align-items: center; }
+.modal-footer a { color: var(--azul-claro); font-weight: 600; text-decoration: none; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1.5rem; margin-bottom: 1rem; }
+.detail-grid div span { display: block; }
+.metodo h3 { margin-top: 1.2rem; }
+.metodo p, .metodo li { font-size: 0.88rem; }
+.metodo code { background: var(--gris-fondo); padding: 0 0.3rem; border-radius: 4px; font-size: 0.82rem; }
+
+@media (max-width: 600px) {
+  header { padding: 0.8rem 1rem; }
+  header .sub { display: none; }
+  .container { padding: 1rem; }
+  .panel { padding: 1rem; }
+  .filters-grid, .grid-3, .detail-grid { grid-template-columns: 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr; }
+  .grafico { height: 300px; }
+}
+@media print {
+  header .info-btn, .no-print, #panelFiltros, #panelCarga { display: none !important; }
+  body { background: white; }
+  .panel { box-shadow: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Adherencia y persistencia al TAR</h1>
+    <div class="sub">PDC, curvas de Kaplan-Meier y detección de acumulación a partir de las dispensaciones de farmacia</div>
+  </div>
+  <button class="info-btn" id="btnInfo" title="Acerca de esta aplicación" aria-label="Acerca de esta aplicación">ℹ</button>
+</header>
+
+<div class="container">
+
+  <!-- ===================== CARGA ===================== -->
+  <section class="panel" id="panelCarga">
+    <h2>1. Fichero de dispensaciones</h2>
+    <div class="drop" id="drop" tabindex="0" role="button">
+      <div><strong>Arrastra aquí el fichero</strong> o haz clic para seleccionarlo</div>
+      <div class="hint">Excel (.xlsx / .xls) o CSV. Los datos se procesan en este navegador y no se envían a ningún servidor.</div>
+      <input type="file" id="fichero" accept=".xlsx,.xls,.csv,.txt" class="hidden">
+    </div>
+    <div id="estadoCarga"></div>
+    <div id="informeCarga"></div>
+  </section>
+
+  <!-- ===================== FILTROS ===================== -->
+  <section class="panel hidden" id="panelFiltros">
+    <h2>2. Análisis</h2>
+
+    <div class="lbl">Analizar por</div>
+    <div class="segmento" id="segModo">
+      <button data-modo="pa" class="activo">Principio activo</button>
+      <button data-modo="producto">Nombre comercial</button>
+      <button data-modo="tar">Cualquier TAR</button>
+    </div>
+    <div class="hint" id="ayudaModo" style="margin-top:0.35rem"></div>
+
+    <div id="bloqueElementos" style="margin-top:1rem">
+      <div class="lbl" id="lblElementos">Principios activos</div>
+      <div id="listaElementos"></div>
+    </div>
+
+    <div class="grid-3" style="margin-top:1rem">
+      <div class="campo">
+        <label class="lbl" for="fDesde">Desde</label>
+        <input type="date" id="fDesde">
+      </div>
+      <div class="campo">
+        <label class="lbl" for="fHasta">Hasta</label>
+        <input type="date" id="fHasta">
+      </div>
+      <div class="campo">
+        <label class="lbl" for="fCohorte">Pacientes</label>
+        <select id="fCohorte">
+          <option value="todos">Todos (naive + pretratados)</option>
+          <option value="naive">Naive (1ª línea)</option>
+          <option value="pretratado">Pretratados (líneas sucesivas)</option>
+        </select>
+      </div>
+    </div>
+    <div class="rapidos" id="rapidos"></div>
+    <div class="hint" id="ayudaFechas" style="margin-top:0.3rem"></div>
+
+    <details class="plegable" id="detPoblacion">
+      <summary>Filtros de población <span class="hint" id="resPoblacion"></span></summary>
+      <div class="contenido">
+        <div class="grid-3">
+          <div class="campo"><div class="lbl">Servicio prescriptor</div><div id="listaServicio"></div></div>
+          <div class="campo"><div class="lbl">Departamento de referencia</div><div id="listaDpto"></div></div>
+          <div class="campo"><div class="lbl">Patología</div><div id="listaPatologia"></div></div>
+        </div>
+        <div class="campo" style="margin-top:1rem;max-width:520px">
+          <label class="lbl" for="fIds">Paciente (Id)</label>
+          <input type="text" id="fIds" list="listaIdsPac" placeholder="Un Id, o varios separados por coma o espacio" autocomplete="off">
+          <div class="hint" id="ayudaIds" style="margin-top:0.3rem">Vacío = todos los pacientes.</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="plegable">
+      <summary>Parámetros de cálculo</summary>
+      <div class="contenido">
+        <div class="grid-4">
+          <div class="campo"><label class="lbl" for="pUmbral">Umbral adherencia (%)</label><input type="number" id="pUmbral" min="1" max="100" step="1"></div>
+          <div class="campo"><label class="lbl" for="pMinDias">Periodo mínimo PDC (días)</label><input type="number" id="pMinDias" min="1" step="1"></div>
+          <div class="campo"><label class="lbl" for="pGracia">Periodo de gracia (días)</label><input type="number" id="pGracia" min="0" step="1"></div>
+          <div class="campo"><label class="lbl" for="pLavado">Lavado (meses)</label><input type="number" id="pLavado" min="0" step="1"></div>
+          <div class="campo"><label class="lbl" for="pMPR">Alerta MPR (%) &gt;</label><input type="number" id="pMPR" min="100" step="1"></div>
+          <div class="campo"><label class="lbl" for="pSobrante">Alerta sobrante (días) ≥</label><input type="number" id="pSobrante" min="1" step="1"></div>
+          <div class="campo"><label class="lbl" for="pAdelanto">Recogida anticipada (días) ≥</label><input type="number" id="pAdelanto" min="1" step="1"></div>
+          <div class="campo"><label class="lbl" for="pRiesgo">Mín. en riesgo (cola fiable)</label><input type="number" id="pRiesgo" min="1" step="1"></div>
+        </div>
+        <div class="hint" style="margin-top:0.6rem">Lavado: meses de historia previa que exige "Desde" (por defecto 4). Puede reducirse a cualquier valor, salvo al analizar pacientes <strong>naive</strong>, para los que el mínimo es de 4 meses.</div>
+        <div class="acciones" style="margin-top:0.75rem"><button class="btn btn-clear btn-sm" id="btnParamDefecto">Restaurar valores por defecto</button></div>
+      </div>
+    </details>
+
+    <div id="erroresAnalisis"></div>
+    <div class="acciones" style="margin-top:1.25rem">
+      <button class="btn btn-primary" id="btnCalcular">Calcular</button>
+      <button class="btn btn-clear" id="btnLimpiar">Limpiar filtros</button>
+    </div>
+  </section>
+
+  <!-- ===================== CONSULTA DE PACIENTE ===================== -->
+  <section class="panel hidden" id="panelPaciente">
+    <h2>Consulta de paciente</h2>
+    <div class="buscador-pac">
+      <div class="campo">
+        <label class="lbl" for="idPaciente">Id del paciente</label>
+        <input type="search" id="idPaciente" list="listaIdsPac" placeholder="Escribe o selecciona un Id" autocomplete="off">
+        <datalist id="listaIdsPac"></datalist>
+      </div>
+      <button class="btn btn-primary" id="btnBuscarPac">Ver histórico</button>
+      <span class="hint" id="nPacientes"></span>
+    </div>
+    <div id="resultadoPaciente"></div>
+  </section>
+
+  <!-- ===================== RESULTADOS ===================== -->
+  <section class="panel hidden" id="panelResultados">
+    <div class="acciones" style="margin-bottom:0.75rem">
+      <h2 style="margin:0">3. Resultados</h2>
+      <div style="margin-left:auto" class="acciones no-print">
+        <button class="btn btn-export btn-sm" id="btnExcel">📥 Excel</button>
+        <button class="btn btn-secondary btn-sm" id="btnImprimir">🖨 Imprimir / PDF</button>
+      </div>
+    </div>
+    <div class="filter-tags" id="tagsFiltros" style="margin-bottom:1rem"></div>
+    <div id="avisosAnalisis"></div>
+    <div class="tabs no-print" id="tabs">
+      <button data-tab="pdc" class="activo">Adherencia (PDC)</button>
+      <button data-tab="pers">Persistencia</button>
+      <button data-tab="acum">Posible acumulación <span class="cnt" id="cntAcum"></span></button>
+      <button data-tab="met">Metodología</button>
+    </div>
+    <div id="tab-pdc"></div>
+    <div id="tab-pers" class="hidden"></div>
+    <div id="tab-acum" class="hidden"></div>
+    <div id="tab-met" class="hidden"></div>
+  </section>
+
+  <div class="panel vacio" id="panelVacio">Carga el fichero de dispensaciones para empezar.</div>
+</div>
+
+<!-- Modal informativo -->
+<div class="modal-overlay hidden" id="modalInfo" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="modal-cab"><h2>Acerca de esta aplicación</h2><button class="cerrar" data-cerrar aria-label="Cerrar">×</button></div>
+    <p>Calcula la <strong>adherencia</strong> (PDC y MPR) y la <strong>persistencia</strong> (curvas de Kaplan-Meier) al tratamiento antirretroviral a partir del fichero de dispensaciones de farmacia hospitalaria. La metodología completa está en la pestaña <em>Metodología</em>.</p>
+    <p><strong>Datos:</strong> el fichero se procesa íntegramente en este navegador; no se envía a ningún servidor.</p>
+    <p class="hint">Los datos se muestran con carácter exclusivamente informativo y pueden no estar actualizados. No sustituye el consejo de un profesional sanitario. Esta herramienta es un apoyo y no debe utilizarse como único criterio para la toma de decisiones. El fichero no informa de exitus ni traslados: un paciente que deja de recoger medicación se considera no persistente.</p>
+    <div class="modal-footer">
+      <span>Aplicación creada por</span>
+      <a href="https://www.linkedin.com/in/emilio-monte-boquet" target="_blank" rel="noopener">EMB</a>
+    </div>
+  </div>
+</div>
+
+<!-- Modal detalle de paciente -->
+<div class="modal-overlay hidden" id="modalPaciente" role="dialog" aria-modal="true">
+  <div class="modal-box ancho" id="contenidoPaciente"></div>
+</div>
+
+<script>
+'use strict';
+const M = window.MotorTAR;
+const $ = id => document.getElementById(id);
+const COLORES = ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6', '--s7', '--s8'].map(v => getComputedStyle(document.documentElement).getPropertyValue(v).trim());
+const MAX_SERIES = 8;
+
+// ---------------- Estado ----------------
+const E = {
+  datos: null, opciones: null, nombreFichero: '',
+  modo: 'pa',
+  seleccion: { pa: new Set(), producto: new Set() },
+  poblacion: { servicio: new Set(), dpto: new Set(), patologia: new Set() },
+  resultado: null, paramsUsados: null,
+  tab: 'pdc',
+  graficos: {}
+};
+
+// ---------------- Formato ----------------
+const nf1 = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const nf0 = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 });
+const f1 = v => v === null || v === undefined || isNaN(v) ? '–' : nf1.format(v);
+const f0 = v => v === null || v === undefined || isNaN(v) ? '–' : nf0.format(v);
+const pct = v => v === null || v === undefined || isNaN(v) ? '–' : nf1.format(v) + ' %';
+const fecha = d => d === null || d === undefined ? '–' : M.diaATexto(d);
+const meses = dias => dias / M.DIAS_MES;
+const hoyISO = () => new Date().toLocaleDateString('sv-SE');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const COHORTE = { naive: 'Naive', pretratado: 'Pretratado', estable: 'En tratamiento estable' };
+const MOTIVO = { hueco: 'Discontinuación (hueco)', cambio: 'Cambio de tratamiento', censura: 'Censurado (persiste)' };
+
+// ================================================================
+// CARGA DEL FICHERO
+// ================================================================
+const drop = $('drop');
+drop.addEventListener('click', () => $('fichero').click());
+drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') $('fichero').click(); });
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('sobre'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('sobre'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('sobre'); if (e.dataTransfer.files[0]) cargar(e.dataTransfer.files[0]); });
+$('fichero').addEventListener('change', e => { if (e.target.files[0]) cargar(e.target.files[0]); });
+
+function leerComo(file, modo, codificacion) {
+  return new Promise((ok, ko) => {
+    const r = new FileReader();
+    r.onload = () => ok(r.result);
+    r.onerror = () => ko(r.error);
+    if (modo === 'texto') r.readAsText(file, codificacion); else r.readAsArrayBuffer(file);
+  });
+}
+
+async function cargar(file) {
+  $('estadoCarga').innerHTML = '<div class="cargando"><div class="spinner"></div>Leyendo y depurando el fichero…</div>';
+  $('informeCarga').innerHTML = '';
+  await new Promise(r => setTimeout(r, 30));
+  try {
+    let wb;
+    if (/\.(csv|txt)$/i.test(file.name)) {
+      let texto = await leerComo(file, 'texto', 'UTF-8');
+      if (texto.includes('�')) texto = await leerComo(file, 'texto', 'windows-1252');
+      wb = XLSX.read(texto, { type: 'string', raw: true });
+    } else {
+      wb = XLSX.read(await leerComo(file, 'binario'), { type: 'array', cellDates: true });
+    }
+    const hoja = wb.Sheets[wb.SheetNames[0]];
+    const filas = XLSX.utils.sheet_to_json(hoja, { defval: null, raw: true });
+    if (!filas.length) throw new Error('El fichero no contiene filas de datos.');
+    const cols = Object.keys(filas[0]);
+    const obligatorias = ['fecha', 'id', 'codProducto', 'producto', 'cantidad', 'posologia', 'codGrupo', 'pa'].map(k => M.COL[k]);
+    const faltan = obligatorias.filter(c => !cols.includes(c));
+    if (faltan.length) throw new Error('Faltan columnas obligatorias: ' + faltan.join(', ') + '.');
+    const datos = M.depurar(filas);
+    if (!datos.disps.length) throw new Error('No se ha encontrado ninguna dispensación de TAR válida (Código Grupo Terapéutico que empiece por J05A).');
+    E.datos = datos;
+    E.opciones = M.opciones(datos);
+    E.nombreFichero = file.name;
+    E.seleccion = { pa: new Set(), producto: new Set() };
+    E.poblacion = { servicio: new Set(), dpto: new Set(), patologia: new Set() };
+    E.resultado = null;
+    $('estadoCarga').innerHTML = '';
+    pintarInforme();
+    prepararFiltros();
+    $('panelFiltros').classList.remove('hidden');
+    prepararConsultaPaciente();
+    $('panelResultados').classList.add('hidden');
+    $('panelVacio').classList.add('hidden');
+  } catch (err) {
+    console.error(err);
+    $('estadoCarga').innerHTML = `<div class="msg-error">No se ha podido cargar el fichero: ${esc(err.message)}</div>`;
+  }
+}
+
+function pintarInforme() {
+  const i = E.datos.informe;
+  const tiles = [
+    ['Pacientes', f0(i.pacientes), ''],
+    ['Dispensaciones TAR', f0(i.dispensacionesValidas), `${f0(i.filasLeidas)} filas leídas`],
+    ['Periodo del fichero', `${fecha(E.datos.fechaMin)}`, `a ${fecha(E.datos.fechaMax)}`],
+    ['Duplicados eliminados', f0(i.duplicados), ''],
+    ['Filas no TAR', f0(i.noTAR), 'excluidas'],
+    ['Devoluciones', f0(i.devoluciones), i.devolucionesNoAplicadas ? `${f0(i.devolucionesNoAplicadas)} sin dispensación previa` : 'descontadas de la dispensación previa'],
+    ['Posología de respaldo', f0(i.posologiaRespaldo), 'posología no interpretable'],
+    ['Excluidas', f0(i.posologiaNoInterpretable + i.sinFechaOId), 'sin posología / fecha / Id']
+  ];
+  const avisoKeys = new Set(['Posología de respaldo', 'Excluidas']);
+  let html = `<div class="msg-info" style="margin-top:1rem">✔ <strong>${esc(E.nombreFichero)}</strong> cargado y depurado.</div><div class="tiles" style="margin-top:0.75rem">`;
+  tiles.forEach(([k, v, d]) => {
+    const aviso = avisoKeys.has(k) && v !== '0';
+    html += `<div class="tile${aviso ? ' aviso' : ''}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${esc(d)}</div></div>`;
+  });
+  html += '</div>';
+  if (i.posologiasNoInterpretables.length) {
+    html += `<details class="plegable"><summary>Posologías sin interpretar y sin respaldo (${i.posologiasNoInterpretables.length})</summary><div class="contenido tabla-wrap"><table><thead><tr><th>Texto de la posología</th><th class="num">Filas</th></tr></thead><tbody>${i.posologiasNoInterpretables.slice(0, 100).map(p => `<tr><td>${esc(p.texto)}</td><td class="num">${f0(p.n)}</td></tr>`).join('')}</tbody></table></div></details>`;
+  }
+  $('informeCarga').innerHTML = html;
+}
+
+// ================================================================
+// FILTROS
+// ================================================================
+function checklist(cont, items, seleccion, opts = {}) {
+  const idb = 'b' + Math.random().toString(36).slice(2, 8);
+  cont.innerHTML = `<div class="checklist">
+    <div class="cl-top"><input type="search" placeholder="${opts.placeholder || 'Buscar…'}" id="${idb}">
+      <button class="btn btn-secondary btn-sm" data-acc="todos">Todos</button>
+      <button class="btn btn-clear btn-sm" data-acc="ninguno">Ninguno</button></div>
+    <div class="cl-items"></div>
+    <div class="cl-pie"></div></div>`;
+  const lista = cont.querySelector('.cl-items'), pie = cont.querySelector('.cl-pie'), buscador = cont.querySelector('input');
+  const visibles = () => {
+    const q = buscador.value.trim().toUpperCase();
+    return items.filter(it => !q || it.valor.toUpperCase().includes(q));
+  };
+  const pintar = () => {
+    const vis = visibles();
+    lista.innerHTML = vis.length ? vis.map(it => `<label class="item"><input type="checkbox" value="${esc(it.valor)}" ${seleccion.has(it.valor) ? 'checked' : ''}><span class="txt">${esc(it.valor)}</span><span class="n">${f0(it.pacientes)} pac.</span></label>`).join('') : '<div class="hint" style="padding:0.5rem 0.75rem">Sin coincidencias</div>';
+    pie.textContent = seleccion.size ? `${seleccion.size} seleccionado${seleccion.size > 1 ? 's' : ''}${opts.max && seleccion.size > opts.max ? ` · máximo ${opts.max} para las gráficas` : ''}` : (opts.vacio || 'Ninguno seleccionado');
+  };
+  lista.addEventListener('change', e => {
+    if (e.target.type !== 'checkbox') return;
+    if (e.target.checked) seleccion.add(e.target.value); else seleccion.delete(e.target.value);
+    pintar(); opts.onChange && opts.onChange();
+  });
+  buscador.addEventListener('input', pintar);
+  cont.querySelectorAll('[data-acc]').forEach(b => b.addEventListener('click', () => {
+    const vis = visibles();
+    if (b.dataset.acc === 'todos') vis.forEach(it => seleccion.add(it.valor)); else vis.forEach(it => seleccion.delete(it.valor));
+    pintar(); opts.onChange && opts.onChange();
+  }));
+  pintar();
+}
+
+function lavadoActual() { const v = parseInt($('pLavado').value, 10); return isNaN(v) || v < 0 ? M.DEFECTO.lavadoMeses : v; }
+function minDesde() { return M.sumarMeses(E.datos.fechaMin, lavadoActual()); }
+
+// ---- Filtro de población por Id de paciente ----
+function leerIds() {
+  const texto = $('fIds').value.split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
+  const unicos = [...new Set(texto)];
+  return { validos: unicos.filter(id => E.datos.porPaciente.has(id)), noEncontrados: unicos.filter(id => !E.datos.porPaciente.has(id)) };
+}
+function resumenPoblacion() {
+  const n = E.poblacion.servicio.size + E.poblacion.dpto.size + E.poblacion.patologia.size + (E.datos ? leerIds().validos.length : 0);
+  $('resPoblacion').textContent = n ? `· ${n} valor${n > 1 ? 'es' : ''} seleccionado${n > 1 ? 's' : ''}` : '· sin filtro (todos)';
+}
+function actualizarIds() {
+  const { validos, noEncontrados } = leerIds();
+  const h = $('ayudaIds');
+  if (!validos.length && !noEncontrados.length) h.innerHTML = 'Vacío = todos los pacientes.';
+  else h.innerHTML = `${validos.length ? `<span style="color:var(--verde)">✔ ${f0(validos.length)} paciente${validos.length > 1 ? 's' : ''} en el fichero</span>` : ''}${validos.length && noEncontrados.length ? ' · ' : ''}${noEncontrados.length ? `<span style="color:var(--rojo)">✖ no encontrado${noEncontrados.length > 1 ? 's' : ''}: ${noEncontrados.slice(0, 5).map(esc).join(', ')}${noEncontrados.length > 5 ? '…' : ''}</span>` : ''}`;
+  resumenPoblacion();
+}
+$('fIds').addEventListener('input', actualizarIds);
+$('fIds').addEventListener('keydown', e => { if (e.key === 'Enter') calcular(); });
+
+function prepararFiltros() {
+  ponerParametrosDefecto();
+  pintarModo();
+  const o = E.opciones;
+  const resumenPob = resumenPoblacion;
+  checklist($('listaServicio'), o.servicio, E.poblacion.servicio, { vacio: 'Todos', onChange: resumenPob });
+  checklist($('listaDpto'), o.dpto, E.poblacion.dpto, { vacio: 'Todos', onChange: resumenPob });
+  checklist($('listaPatologia'), o.patologia, E.poblacion.patologia, { vacio: 'Todas', onChange: resumenPob });
+  $('fIds').value = '';
+  actualizarIds();
+  fijarFechas(minDesde(), E.datos.fechaMax);
+  pintarRapidos();
+  $('erroresAnalisis').innerHTML = '';
+}
+
+function fijarFechas(desde, hasta) {
+  $('fDesde').value = M.diaAISO(desde);
+  $('fHasta').value = M.diaAISO(hasta);
+  $('fDesde').min = M.diaAISO(minDesde());
+  $('fHasta').max = M.diaAISO(E.datos.fechaMax);
+  $('ayudaFechas').textContent = `"Desde" admite fechas a partir del ${fecha(minDesde())} (primera dispensación del fichero + lavado). "Hasta" no puede superar la última dispensación (${fecha(E.datos.fechaMax)}).`;
+}
+
+function pintarRapidos() {
+  const max = E.datos.fechaMax, min = minDesde();
+  const btns = [['Todo el periodo', min, max]];
+  const aMax = +M.diaAISO(max).slice(0, 4);
+  for (let a = aMax; a >= +M.diaAISO(min).slice(0, 4) && btns.length < 5; a--) {
+    const ini = M.aDia(`${a}-01-01`), fin = M.aDia(`${a}-12-31`);
+    if (ini >= min && fin <= max) btns.push([`Año ${a}`, ini, fin]);
+  }
+  const u12 = M.sumarMeses(max, -12) + 1;
+  if (u12 >= min) btns.splice(1, 0, ['Últimos 12 meses', u12, max]);
+  $('rapidos').innerHTML = btns.map((b, i) => `<button data-i="${i}">${b[0]}</button>`).join('');
+  $('rapidos').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { const x = btns[+b.dataset.i]; fijarFechas(x[1], x[2]); }));
+}
+
+function pintarModo() {
+  document.querySelectorAll('#segModo button').forEach(b => b.classList.toggle('activo', b.dataset.modo === E.modo));
+  const ayuda = {
+    pa: 'Cada valor del campo "Descripción Principio Activo" es un elemento (los combos no se desglosan). Cada elemento seleccionado es un grupo de resultados.',
+    producto: 'Cada nombre comercial es un elemento. Cada elemento seleccionado es un grupo de resultados.',
+    tar: 'Todo el TAR del paciente se analiza como un único elemento: los cambios de régimen no interrumpen la persistencia.'
+  };
+  $('ayudaModo').textContent = ayuda[E.modo];
+  $('bloqueElementos').classList.toggle('hidden', E.modo === 'tar');
+  if (E.modo !== 'tar') {
+    $('lblElementos').textContent = E.modo === 'pa' ? 'Principios activos' : 'Nombres comerciales';
+    checklist($('listaElementos'), E.opciones[E.modo], E.seleccion[E.modo], { placeholder: 'Buscar…', max: MAX_SERIES });
+  }
+}
+$('segModo').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  E.modo = b.dataset.modo; pintarModo();
+});
+
+const PARAMS = [['pUmbral', 'umbral'], ['pMinDias', 'pdcMinDias'], ['pGracia', 'gracia'], ['pLavado', 'lavadoMeses'], ['pMPR', 'umbralMPR'], ['pSobrante', 'umbralSobrante'], ['pAdelanto', 'umbralAdelanto'], ['pRiesgo', 'minEnRiesgo']];
+function ponerParametrosDefecto() { PARAMS.forEach(([id, k]) => { $(id).value = M.DEFECTO[k]; }); }
+$('btnParamDefecto').addEventListener('click', () => { ponerParametrosDefecto(); if (E.datos) { fijarFechas(M.aDia($('fDesde').value) ?? minDesde(), M.aDia($('fHasta').value) ?? E.datos.fechaMax); pintarRapidos(); } });
+$('pLavado').addEventListener('change', () => { if (E.datos) { fijarFechas(Math.max(minDesde(), M.aDia($('fDesde').value) || 0), M.aDia($('fHasta').value) || E.datos.fechaMax); pintarRapidos(); } });
+
+$('btnLimpiar').addEventListener('click', () => {
+  if (!E.datos) return;
+  E.modo = 'pa';
+  E.seleccion = { pa: new Set(), producto: new Set() };
+  E.poblacion = { servicio: new Set(), dpto: new Set(), patologia: new Set() };
+  $('fCohorte').value = 'todos';
+  prepararFiltros();
+  E.resultado = null;
+  $('panelResultados').classList.add('hidden');
+});
+
+function leerParametros() {
+  const p = { modo: E.modo, elementos: E.modo === 'tar' ? [] : [...E.seleccion[E.modo]], desde: $('fDesde').value, hasta: $('fHasta').value, cohorte: $('fCohorte').value, filtros: {} };
+  PARAMS.forEach(([id, k]) => { p[k] = parseFloat($(id).value); });
+  ['servicio', 'dpto', 'patologia'].forEach(k => { if (E.poblacion[k].size) p.filtros[k] = [...E.poblacion[k]]; });
+  const ids = leerIds();
+  if (ids.validos.length) p.filtros.id = ids.validos;
+  p._idsNoEncontrados = ids.noEncontrados;
+  p._idsIndicados = ids.validos.length + ids.noEncontrados.length;
+  // Mantener el orden de la lista (por nº de pacientes) para que el color siga al elemento
+  if (E.modo !== 'tar') {
+    const orden = E.opciones[E.modo].map(o => o.valor);
+    p.elementos.sort((a, b) => orden.indexOf(a) - orden.indexOf(b));
+  }
+  return p;
+}
+
+$('btnCalcular').addEventListener('click', calcular);
+function calcular() {
+  if (!E.datos) return;
+  const p = leerParametros();
+  const errores = [];
+  if (p._idsIndicados && !p.filtros.id) errores.push(`Ninguno de los Id indicados existe en el fichero: ${p._idsNoEncontrados.slice(0, 5).join(', ')}.`);
+  if (p.modo !== 'tar' && p.elementos.length > MAX_SERIES) errores.push(`Selecciona como máximo ${MAX_SERIES} elementos para poder compararlos en las gráficas.`);
+  const r = errores.length ? { errores } : M.analizar(E.datos, p);
+  if (r.errores && r.errores.length) {
+    $('erroresAnalisis').innerHTML = r.errores.map(e => `<div class="msg-error">${esc(e)}</div>`).join('');
+    return;
+  }
+  $('erroresAnalisis').innerHTML = '';
+  E.resultado = r;
+  E.paramsUsados = p;
+  E.colorDe = {};
+  r.resultados.forEach((x, i) => { E.colorDe[x.elemento] = COLORES[i % COLORES.length]; });
+  $('panelResultados').classList.remove('hidden');
+  pintarResultados();
+  if (E.historico && $('resultadoPaciente').innerHTML) consultarPaciente(E.historico.id, false);
+  $('panelResultados').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ================================================================
+// RESULTADOS
+// ================================================================
+document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => {
+  E.tab = b.dataset.tab;
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('activo', x === b));
+  ['pdc', 'pers', 'acum', 'met'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== E.tab));
+}));
+
+function nombreCorto(el) { return el === 'TAR' ? 'Cualquier TAR' : el; }
+function chip(el) { return `<span class="chip-serie" style="background:${E.colorDe[el]}"></span>`; }
+function etiqueta(el, negrita) { const t = esc(nombreCorto(el)); return `<span class="el">${chip(el)}<span>${negrita ? `<strong>${t}</strong>` : t}</span></span>`; }
+
+function pintarResultados() {
+  const r = E.resultado, P = r.parametros;
+  const tags = [
+    `Modo: ${{ pa: 'principio activo', producto: 'nombre comercial', tar: 'cualquier TAR' }[P.modo]}`,
+    `${fecha(P.desde)} – ${fecha(P.hasta)}`,
+    `Pacientes: ${$('fCohorte').selectedOptions[0].textContent}`,
+    `Umbral ${P.umbral} %`, `Gracia ${P.gracia} d`, `Mín. PDC ${P.pdcMinDias} d`, `Lavado ${P.lavadoMeses} m`
+  ];
+  Object.entries(P.filtros || {}).forEach(([k, v]) => { if (v && v.length) tags.push(`${{ servicio: 'Servicio', dpto: 'Dpto.', patologia: 'Patología', id: 'Paciente' }[k]}: ${v.length > 2 ? v.length + (k === 'id' ? ' Id' : ' valores') : v.join(', ')}`); });
+  $('tagsFiltros').innerHTML = tags.map(t => `<span class="filter-tag">${esc(t)}</span>`).join('');
+  $('avisosAnalisis').innerHTML = [...E.datos.avisos, ...r.avisos].map(a => `<div class="msg-aviso">⚠ ${esc(a)}</div>`).join('');
+  pintarPDC();
+  pintarPersistencia();
+  pintarAcumulacion();
+  pintarMetodologia();
+}
+
+// ---------- tabla genérica con orden y paginación ----------
+function tablaDatos(cont, filas, columnas, opts = {}) {
+  const st = { orden: opts.orden || null, asc: opts.asc ?? false, pagina: 0, porPagina: opts.porPagina || 25 };
+  const pintar = () => {
+    let f = [...filas];
+    if (st.orden) {
+      const col = columnas.find(c => c.k === st.orden);
+      const val = col.v || (x => x[col.k]);
+      f.sort((a, b) => { const x = val(a), y = val(b); const cmp = (x === null || x === undefined) ? 1 : (y === null || y === undefined) ? -1 : (typeof x === 'string' ? x.localeCompare(y) : x - y); return st.asc ? cmp : -cmp; });
+    }
+    const nPag = Math.max(1, Math.ceil(f.length / st.porPagina));
+    st.pagina = Math.min(st.pagina, nPag - 1);
+    const ini = st.pagina * st.porPagina, vista = f.slice(ini, ini + st.porPagina);
+    cont.innerHTML = `<div class="tabla-wrap"><table><thead><tr>${columnas.map(c => `<th class="ord${c.num ? ' num' : ''}" data-k="${c.k}" title="Ordenar">${c.t}${st.orden === c.k ? (st.asc ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
+      <tbody>${vista.length ? vista.map((x, i) => `<tr class="${opts.onClic ? 'clic' : ''}" data-i="${ini + i}">${columnas.map(c => `<td class="${c.num ? 'num' : ''}">${c.f ? c.f(x) : esc(x[c.k])}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${columnas.length}" class="vacio" style="padding:1.5rem">Sin pacientes</td></tr>`}</tbody></table></div>
+      ${f.length > st.porPagina ? `<div class="paginacion"><button class="btn btn-secondary btn-sm" data-p="-1" ${st.pagina === 0 ? 'disabled' : ''}>‹ Anterior</button><span>${f0(ini + 1)}–${f0(Math.min(ini + st.porPagina, f.length))} de ${f0(f.length)} ${opts.unidad || 'pacientes'}</span><button class="btn btn-secondary btn-sm" data-p="1" ${st.pagina >= nPag - 1 ? 'disabled' : ''}>Siguiente ›</button></div>` : `<div class="hint" style="margin-top:0.4rem">${f0(f.length)} ${opts.unidad || 'pacientes'}</div>`}`;
+    cont.querySelectorAll('th.ord').forEach(th => th.addEventListener('click', () => { const k = th.dataset.k; if (st.orden === k) st.asc = !st.asc; else { st.orden = k; st.asc = true; } pintar(); }));
+    cont.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => { st.pagina += +b.dataset.p; pintar(); }));
+    if (opts.onClic) cont.querySelectorAll('tbody tr[data-i]').forEach(tr => tr.addEventListener('click', () => { opts.onClic(f[+tr.dataset.i]); }));
+    // la fila clicada debe corresponder al orden actual
+  };
+  pintar();
+}
+
+function selectorElemento(id, onChange) {
+  const r = E.resultado;
+  if (r.resultados.length < 2) return '';
+  return `<div class="campo"><label class="lbl" for="${id}">Elemento</label><select id="${id}">${r.resultados.map((x, i) => `<option value="${i}">${esc(nombreCorto(x.elemento))}</option>`).join('')}</select></div>`;
+}
+
+function destruirGrafico(k) { if (E.graficos[k]) { E.graficos[k].destroy(); delete E.graficos[k]; } }
+
+// ================================================================
+// PESTAÑA PDC
+// ================================================================
+function pintarPDC() {
+  const r = E.resultado, P = r.parametros, cont = $('tab-pdc');
+  const unico = r.resultados.length === 1 ? r.resultados[0] : null;
+  let html = '';
+  if (unico) {
+    const s = unico.pdc.resumen;
+    html += `<div class="tiles">
+      <div class="tile"><div class="k">Pacientes evaluables</div><div class="v">${f0(s.n)}</div><div class="d">${f0(unico.pdc.excluidos.length)} con periodo &lt; ${P.pdcMinDias} d</div></div>
+      <div class="tile"><div class="k">PDC mediana</div><div class="v">${pct(s.mediana)}</div><div class="d">RIC ${f1(s.p25)} – ${f1(s.p75)}</div></div>
+      <div class="tile"><div class="k">PDC media</div><div class="v">${pct(s.media)}</div><div class="d">&nbsp;</div></div>
+      <div class="tile"><div class="k">Adherentes (≥${P.umbral} %)</div><div class="v">${pct(s.pctAdherentes)}</div><div class="d">${f0(s.adherentes)} de ${f0(s.n)}</div></div>
+      <div class="tile${s.alertas ? ' aviso' : ''}"><div class="k">Posible acumulación</div><div class="v">${f0(s.alertas)}</div><div class="d">${pct(s.pctAlertas)} · MPR mediana ${pct(s.mprMediana)}</div></div>
+    </div>`;
+  }
+  html += `<h3>Resumen${unico ? ' por cohorte' : ' por elemento'}</h3><div class="tabla-wrap"><table><thead><tr>
+    <th>${unico ? 'Cohorte' : 'Elemento / cohorte'}</th><th class="num">n</th><th class="num">PDC mediana (RIC)</th><th class="num">PDC media</th><th class="num">Adherentes ≥${P.umbral} %</th><th class="num">MPR mediana</th><th class="num">Posible acumu&shy;lación</th><th class="num">Excluidos &lt;${P.pdcMinDias} d</th></tr></thead><tbody>`;
+  const filaRes = (etq, s, excl, sub) => `<tr class="${sub ? 'sub' : ''}"><td>${etq}</td><td class="num">${f0(s.n)}</td><td class="num">${s.n ? `${f1(s.mediana)} (${f1(s.p25)}–${f1(s.p75)})` : '–'}</td><td class="num">${f1(s.media)}</td><td class="num">${s.n ? `${pct(s.pctAdherentes)} <span class="hint">(${f0(s.adherentes)})</span>` : '–'}</td><td class="num">${f1(s.mprMediana)}</td><td class="num">${s.n ? `${f0(s.alertas)} <span class="hint">(${f1(s.pctAlertas)} %)</span>` : '–'}</td><td class="num">${excl === null ? '' : f0(excl)}</td></tr>`;
+  r.resultados.forEach(x => {
+    if (!unico) html += filaRes(etiqueta(x.elemento, true), x.pdc.resumen, x.pdc.excluidos.length, false);
+    else html += filaRes('<strong>Todos</strong>', x.pdc.resumen, x.pdc.excluidos.length, false);
+    ['naive', 'pretratado', 'estable'].forEach(c => { if (x.pdc.porCohorte[c].n) html += filaRes(`&nbsp;&nbsp;${COHORTE[c]}`, x.pdc.porCohorte[c], null, true); });
+  });
+  html += `</tbody></table></div>
+    <div class="hint" style="margin-top:0.4rem">RIC: rango intercuartílico. "En tratamiento estable": ya recibía el elemento antes de "Desde". MPR &gt; 100 % indica que se ha dispensado más medicación que días del periodo.</div>
+    <h3>Distribución del PDC</h3>
+    <div class="leyenda" id="leyPDC"></div>
+    <div class="grafico bajo"><canvas id="grafPDC" role="img" aria-label="Distribución del PDC por tramos"></canvas></div>
+    <details class="plegable"><summary>Ver como tabla</summary><div class="contenido" id="tablaDistPDC"></div></details>
+    <h3>Pacientes</h3>
+    <div class="barra-tabla">${selectorElemento('selPDC')}
+      <div class="campo"><label class="lbl" for="verPDC">Mostrar</label><select id="verPDC"><option value="todos">Todos los evaluables</option><option value="no">Solo no adherentes</option><option value="acum">Solo posible acumulación</option><option value="excl">Excluidos por periodo corto</option></select></div></div>
+    <div id="listaPDC"></div>`;
+  cont.innerHTML = html;
+
+  // Gráfico de distribución (% de pacientes por tramo)
+  destruirGrafico('pdc');
+  const tramos = r.resultados[0].pdc.distribucion.map(d => d.tramo);
+  const series = r.resultados.map(x => ({ el: x.elemento, n: x.pdc.resumen.n, vals: x.pdc.distribucion.map(d => x.pdc.resumen.n ? d.n / x.pdc.resumen.n * 100 : 0), cuentas: x.pdc.distribucion.map(d => d.n) }));
+  $('leyPDC').innerHTML = series.length > 1 ? series.map(s => `<span class="el">${chip(s.el)}<span>${esc(nombreCorto(s.el))} (n=${f0(s.n)})</span></span>`).join('') : '';
+  E.graficos.pdc = new Chart($('grafPDC'), {
+    type: 'bar',
+    data: { labels: tramos, datasets: series.map(s => ({ label: nombreCorto(s.el), data: s.vals, cuentas: s.cuentas, backgroundColor: E.colorDe[s.el], borderColor: '#ffffff', borderWidth: 2, borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: 'bottom', maxBarThickness: 48 })) },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${f1(c.parsed.y)} % (${f0(c.dataset.cuentas[c.dataIndex])} pac.)` } } },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: '% de pacientes', color: '#5d6d7e' }, ticks: { callback: v => v + ' %', color: '#5d6d7e' }, grid: { color: '#eef1f5' }, border: { display: false } },
+        x: { title: { display: true, text: 'PDC', color: '#5d6d7e' }, ticks: { color: '#5d6d7e' }, grid: { display: false } }
+      }
+    }
+  });
+  $('tablaDistPDC').innerHTML = `<div class="tabla-wrap"><table><thead><tr><th>Tramo de PDC</th>${series.map(s => `<th class="num">${esc(nombreCorto(s.el))}</th>`).join('')}</tr></thead><tbody>${tramos.map((t, i) => `<tr><td>${t}</td>${series.map(s => `<td class="num">${f0(s.cuentas[i])} (${f1(s.vals[i])} %)</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+
+  const pintarLista = () => {
+    const x = r.resultados[$('selPDC') ? +$('selPDC').value : 0];
+    const ver = $('verPDC').value;
+    let filas = ver === 'excl' ? x.pdc.excluidos : x.pdc.pacientes;
+    if (ver === 'no') filas = filas.filter(p => !p.adherente);
+    if (ver === 'acum') filas = filas.filter(p => p.alertaAcumulacion);
+    tablaDatos($('listaPDC'), filas, [
+      { k: 'id', t: 'Id', f: p => `<button class="link">${esc(p.id)}</button>` },
+      { k: 'cohorte', t: 'Cohorte', f: p => COHORTE[p.cohorte] },
+      { k: 'inicio', t: 'Inicio', f: p => fecha(p.inicio) },
+      { k: 'fin', t: 'Fin', f: p => fecha(p.fin) },
+      { k: 'dias', t: 'Días', num: true, f: p => f0(p.dias) },
+      { k: 'cubiertos', t: 'Cubiertos', num: true, f: p => f0(p.cubiertos) },
+      { k: 'pdc', t: 'PDC', num: true, f: p => p.pdc === null ? '–' : `<span class="badge ${p.adherente ? 'badge-green' : 'badge-red'}">${f1(p.pdc)} %</span>` },
+      { k: 'mpr', t: 'MPR', num: true, f: p => f1(p.mpr) + (p.alertaAcumulacion ? ' <span class="badge badge-orange" title="Posible acumulación">!</span>' : '') },
+      { k: 'sobrante', t: 'Sobrante', num: true, f: p => f0(p.sobrante) },
+      { k: 'cambio', t: 'Cambio a', v: p => p.cambio ? p.cambio.destino : null, f: p => p.cambio ? `${esc(p.cambio.destino)} <span class="hint">${fecha(p.cambio.dia)}</span>` : '' }
+    ], { orden: 'pdc', asc: true, onClic: p => abrirPaciente(p.id, x.elemento) });
+  };
+  if ($('selPDC')) $('selPDC').addEventListener('change', pintarLista);
+  $('verPDC').addEventListener('change', pintarLista);
+  pintarLista();
+}
+
+// ================================================================
+// PESTAÑA PERSISTENCIA
+// ================================================================
+function pintarPersistencia() {
+  const r = E.resultado, P = r.parametros, cont = $('tab-pers');
+  const res = r.resultados;
+  const maxT = Math.max(1, ...res.flatMap(x => x.persistencia.sujetos.map(s => s.tiempo)));
+  const pasoMeses = meses(maxT) <= 36 ? 6 : 12;
+  const maxMeses = Math.max(pasoMeses, Math.ceil(meses(maxT) / pasoMeses) * pasoMeses);
+  const puntos = []; for (let m = 0; m <= maxMeses; m += pasoMeses) puntos.push(m);
+
+  let html = `<div class="opciones-graf no-print">
+      <label><input type="checkbox" id="optIC" ${res.length <= 3 ? 'checked' : ''}> Intervalo de confianza 95 %</label>
+      <label><input type="checkbox" id="optCens" checked> Marcas de censura</label>
+      <label><input type="checkbox" id="optZoom"> Ajustar eje vertical</label>
+      <button class="btn btn-secondary btn-sm" id="btnPNG" style="margin-left:auto">⬇ Imagen PNG</button>
+    </div>
+    <div class="leyenda" id="leyKM"></div>
+    <div class="grafico"><canvas id="grafKM" role="img" aria-label="Curvas de persistencia de Kaplan-Meier"></canvas></div>
+    <div class="tabla-wrap" style="margin-top:0.5rem"><table><thead><tr><th>En riesgo</th>${puntos.map(m => `<th class="num">${m} m</th>`).join('')}</tr></thead><tbody>
+      ${res.map(x => `<tr><td>${etiqueta(x.elemento)}</td>${puntos.map(m => { const n = M.enRiesgoEn(x.persistencia.sujetos, Math.round(m * M.DIAS_MES)); return `<td class="num${n < P.minEnRiesgo ? ' poco-fiable' : ''}">${f0(n)}</td>`; }).join('')}</tr>`).join('')}
+    </tbody></table></div>
+    <div class="hint" style="margin-top:0.3rem">En cursiva, puntos con menos de ${P.minEnRiesgo} pacientes en riesgo: la curva a partir de ahí es poco fiable. Evento = discontinuación (hueco &gt; ${P.gracia} días) o cambio de tratamiento${P.modo === 'tar' ? ' (en "Cualquier TAR" los cambios no son evento)' : ''}.</div>
+
+    <h3>Resumen</h3>
+    <div class="tabla-wrap"><table><thead><tr><th>Elemento</th><th class="num">n</th><th class="num">Naive / pretr.</th><th class="num">Hueco</th><th class="num">Cambio</th><th class="num">Censurados</th><th class="num">Mediana (meses)</th><th class="num">6 meses</th><th class="num">12 meses</th><th class="num">24 meses</th></tr></thead><tbody>
+    ${res.map(x => { const k = x.persistencia; return `<tr><td>${etiqueta(x.elemento)}</td><td class="num">${f0(k.km.n)}</td><td class="num">${f0(k.naive)} / ${f0(k.pretratados)}</td><td class="num">${f0(k.motivos.hueco)}</td><td class="num">${f0(k.motivos.cambio)}</td><td class="num">${f0(k.motivos.censura)}</td><td class="num">${k.km.medianaAlcanzada ? f1(meses(k.km.mediana)) : '<span class="hint">no alcanzada</span>'}</td>${k.hitos.map(h => `<td class="num${h.fiable ? '' : ' poco-fiable'}">${k.km.n && h.enRiesgo ? `${f1(h.surv * 100)} %<br><span class="hint">${f1(h.ciL * 100)}–${f1(h.ciU * 100)}</span>` : '–'}</td>`).join('')}</tr>`; }).join('')}
+    </tbody></table></div>
+    <div class="hint" style="margin-top:0.3rem">Probabilidad de seguir en tratamiento (Kaplan-Meier) con IC 95 % (Greenwood, transformación log-log).</div>`;
+
+  if (r.comparacion && r.comparacion.logRank) {
+    const lr = r.comparacion.logRank;
+    html += `<div class="msg-info">Test log-rank: χ² = ${lr.chi2 === null ? '–' : f1(lr.chi2)} con ${lr.gl} gl · p = ${lr.p === null ? '–' : lr.p < 0.001 ? '&lt; 0,001' : lr.p.toFixed(3).replace('.', ',')}${r.comparacion.pacientesEnVariosGrupos ? ` <br><strong>Atención:</strong> ${f0(r.comparacion.pacientesEnVariosGrupos)} pacientes están en más de un grupo, por lo que el test no es formalmente válido (grupos no independientes).` : ''}</div>`;
+  }
+  const conCambios = res.filter(x => x.persistencia.destinos.length);
+  if (conCambios.length) {
+    html += `<h3>Tratamiento de destino en los cambios</h3><div class="tabla-wrap"><table><thead><tr><th>Desde</th><th>Hacia</th><th class="num">Pacientes</th></tr></thead><tbody>
+      ${conCambios.map(x => x.persistencia.destinos.map((d, i) => `<tr>${i === 0 ? `<td rowspan="${x.persistencia.destinos.length}">${etiqueta(x.elemento)}</td>` : ''}<td>${esc(d.destino)}</td><td class="num">${f0(d.n)}</td></tr>`).join('')).join('')}
+    </tbody></table></div>`;
+  }
+  html += `<h3>Pacientes</h3><div class="barra-tabla">${selectorElemento('selPers')}
+    <div class="campo"><label class="lbl" for="verPers">Mostrar</label><select id="verPers"><option value="todos">Todos</option><option value="evento">Solo con evento</option><option value="hueco">Discontinuación (hueco)</option><option value="cambio">Cambio de tratamiento</option><option value="censura">Censurados</option></select></div></div>
+    <div id="listaPers"></div>`;
+  cont.innerHTML = html;
+
+  // ---- curvas KM ----
+  $('leyKM').innerHTML = res.map(x => `<span>${etiqueta(x.elemento)} (n=${f0(x.persistencia.km.n)})</span>`).join('');
+  const dibujar = () => {
+    destruirGrafico('km');
+    const conIC = $('optIC').checked, conCens = $('optCens').checked;
+    let yMin = 0;
+    if ($('optZoom').checked) {
+      const minimo = Math.min(...res.flatMap(x => x.persistencia.km.pasos.map(p => (conIC ? p.ciL : p.surv) * 100)));
+      yMin = Math.max(0, Math.floor((minimo - 5) / 10) * 10);
+    }
+    const ds = [];
+    res.forEach(x => {
+      const km = x.persistencia.km, col = E.colorDe[x.elemento];
+      if (!km.n) return;
+      const ultimo = km.pasos[km.pasos.length - 1];
+      const tFin = Math.max(ultimo.t, ...x.persistencia.sujetos.map(s => s.tiempo));
+      const pts = km.pasos.map(p => ({ x: meses(p.t), y: p.surv * 100 }));
+      pts.push({ x: meses(tFin), y: ultimo.surv * 100 });
+      if (conIC) {
+        const sup = km.pasos.map(p => ({ x: meses(p.t), y: p.ciU * 100 })); sup.push({ x: meses(tFin), y: ultimo.ciU * 100 });
+        const inf = km.pasos.map(p => ({ x: meses(p.t), y: p.ciL * 100 })); inf.push({ x: meses(tFin), y: ultimo.ciL * 100 });
+        ds.push({ label: '_icsup', data: sup, stepped: true, borderWidth: 0, pointRadius: 0, fill: false, borderColor: 'transparent' });
+        ds.push({ label: '_icinf', data: inf, stepped: true, borderWidth: 0, pointRadius: 0, fill: '-1', backgroundColor: col + '22', borderColor: 'transparent' });
+      }
+      ds.push({ label: nombreCorto(x.elemento), data: pts, stepped: true, borderColor: col, backgroundColor: col, borderWidth: 2, pointRadius: 0, pointHitRadius: 6, fill: false });
+      if (conCens) ds.push({ label: '_cens', type: 'scatter', data: km.censuras.map(c => ({ x: meses(c.t), y: c.surv * 100 })), pointStyle: 'line', rotation: 90, radius: 4, borderColor: col, borderWidth: 1.5, pointHoverRadius: 4 });
+    });
+    E.graficos.km = new Chart($('grafKM'), {
+      type: 'line',
+      data: { datasets: ds },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false, parsing: false, normalized: true,
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            filter: it => !it.dataset.label.startsWith('_'),
+            callbacks: { title: it => it.length ? `${f1(it[0].parsed.x)} meses` : '', label: c => `${c.dataset.label}: ${f1(c.parsed.y)} %` }
+          }
+        },
+        scales: {
+          x: { type: 'linear', min: 0, max: maxMeses, title: { display: true, text: 'Meses desde el inicio', color: '#5d6d7e' }, ticks: { stepSize: pasoMeses, color: '#5d6d7e' }, grid: { color: '#eef1f5' } },
+          y: { min: yMin, max: 100, title: { display: true, text: '% de pacientes que persisten', color: '#5d6d7e' }, ticks: { callback: v => v + ' %', color: '#5d6d7e' }, grid: { color: '#eef1f5' }, border: { display: false } }
+        }
+      },
+      plugins: [{ id: 'fondoBlanco', beforeDraw: ch => { const c = ch.ctx; c.save(); c.fillStyle = '#fff'; c.fillRect(0, 0, ch.width, ch.height); c.restore(); } }]
+    });
+  };
+  dibujar();
+  $('optIC').addEventListener('change', dibujar);
+  $('optCens').addEventListener('change', dibujar);
+  $('optZoom').addEventListener('change', dibujar);
+  $('btnPNG').addEventListener('click', () => {
+    const a = document.createElement('a');
+    a.href = E.graficos.km.toBase64Image('image/png', 1);
+    a.download = `AdherenciaTAR_KaplanMeier_${hoyISO()}.png`;
+    a.click();
+  });
+
+  const pintarLista = () => {
+    const x = res[$('selPers') ? +$('selPers').value : 0];
+    const ver = $('verPers').value;
+    let filas = x.persistencia.sujetos;
+    if (ver === 'evento') filas = filas.filter(s => s.evento === 1);
+    else if (ver !== 'todos') filas = filas.filter(s => s.motivo === ver);
+    tablaDatos($('listaPers'), filas, [
+      { k: 'id', t: 'Id', f: s => `<button class="link">${esc(s.id)}</button>` },
+      { k: 'cohorte', t: 'Cohorte', f: s => COHORTE[s.cohorte] },
+      { k: 'previo', t: 'Tratamiento previo', v: s => s.previo ? s.previo.elemento : null, f: s => s.previo ? esc(s.previo.elemento) : '' },
+      { k: 'inicio', t: 'Inicio', f: s => fecha(s.inicio) },
+      { k: 'fechaFin', t: 'Fin', f: s => fecha(s.fechaFin) },
+      { k: 'tiempo', t: 'Meses', num: true, f: s => f1(meses(s.tiempo)) },
+      { k: 'motivo', t: 'Resultado', f: s => `<span class="badge ${s.motivo === 'censura' ? 'badge-green' : s.motivo === 'cambio' ? 'badge-blue' : 'badge-red'}">${MOTIVO[s.motivo]}</span>` },
+      { k: 'destino', t: 'Cambio a', f: s => s.destino ? esc(s.destino) : '' }
+    ], { orden: 'tiempo', asc: true, onClic: s => abrirPaciente(s.id, x.elemento) });
+  };
+  if ($('selPers')) $('selPers').addEventListener('change', pintarLista);
+  $('verPers').addEventListener('change', pintarLista);
+  pintarLista();
+}
+
+// ================================================================
+// PESTAÑA ACUMULACIÓN
+// ================================================================
+function filasAcumulacion() {
+  return E.resultado.resultados.flatMap(x => x.pdc.pacientes.filter(p => p.alertaAcumulacion).map(p => ({ ...p, elemento: x.elemento })));
+}
+function pintarAcumulacion() {
+  const P = E.resultado.parametros, filas = filasAcumulacion();
+  $('cntAcum').textContent = `(${f0(filas.length)})`;
+  $('tab-acum').innerHTML = `<div class="msg-info">Pacientes con <strong>MPR &gt; ${P.umbralMPR} %</strong> o que conservaban <strong>≥ ${P.umbralSobrante} días de medicación</strong> al hacer su última recogida. Pueden estar acumulando medicación de forma injustificada o tomando una dosis mayor de la prescrita. Una recogida se considera anticipada si se hace con ≥ ${P.umbralAdelanto} días de medicación aún disponibles. Haz clic en un paciente para ver sus dispensaciones.</div>
+    <div id="listaAcum"></div>`;
+  const cols = [
+    { k: 'id', t: 'Id', f: p => `<button class="link">${esc(p.id)}</button>` },
+    { k: 'cohorte', t: 'Cohorte', f: p => COHORTE[p.cohorte] },
+    { k: 'inicio', t: 'Periodo', f: p => `${fecha(p.inicio)} – ${fecha(p.fin)}` },
+    { k: 'pdc', t: 'PDC', num: true, f: p => f1(p.pdc) },
+    { k: 'mpr', t: 'MPR', num: true, f: p => `<strong>${f1(p.mpr)}</strong>` },
+    { k: 'sobrante', t: 'Sobrante (d)', num: true, f: p => f0(p.sobrante) },
+    { k: 'nAdelantos', t: 'Recogidas anticipadas', num: true, f: p => f0(p.nAdelantos) },
+    { k: 'maxAdelanto', t: 'Adelanto máx. (d)', num: true, f: p => f0(p.maxAdelanto) }
+  ];
+  if (E.resultado.resultados.length > 1) cols.splice(1, 0, { k: 'elemento', t: 'Elemento', f: p => `${etiqueta(p.elemento)}` });
+  tablaDatos($('listaAcum'), filas, cols, { orden: 'sobrante', asc: false, onClic: p => abrirPaciente(p.id, p.elemento) });
+}
+
+// ================================================================
+// DETALLE DE PACIENTE
+// ================================================================
+function abrirPaciente(id, elemento) {
+  const det = M.detallePaciente(E.datos, id, E.resultado.parametros, elemento);
+  if (!det) return;
+  const p = det.pdc, s = det.persistencia, P = E.resultado.parametros;
+  let html = `<div class="modal-cab"><h2>Paciente ${esc(id)}</h2><button class="btn btn-secondary btn-sm" data-historico="${esc(id)}" style="margin-left:auto">Ver histórico completo</button><button class="cerrar" data-cerrar aria-label="Cerrar" style="margin-left:0.5rem">×</button></div>
+    <div class="detail-grid">
+      <div><span class="lbl">Elemento analizado</span>${etiqueta(det.elemento)}</div>
+      <div><span class="lbl">Cohorte</span>${det.cohorte ? COHORTE[det.cohorte] : 'Fuera del análisis'}</div>
+      ${p ? `<div><span class="lbl">Periodo PDC</span>${fecha(p.inicio)} – ${fecha(p.fin)} (${f0(p.dias)} días)</div>
+      <div><span class="lbl">PDC · MPR · sobrante</span>${f1(p.pdc)} % · ${f1(p.mpr)} % · ${f0(p.sobrante)} días ${p.alertaAcumulacion ? '<span class="badge badge-orange">posible acumulación</span>' : ''}</div>` : ''}
+      ${s ? `<div><span class="lbl">Persistencia</span>${MOTIVO[s.motivo]} a los ${f1(meses(s.tiempo))} meses (${fecha(s.fechaFin)})${s.destino ? ` → ${esc(s.destino)}` : ''}</div>` : ''}
+      <div><span class="lbl">Ventana analizada</span>${fecha(P.desde)} – ${fecha(P.hasta)}</div>
+    </div>
+    <div class="hint" style="margin-bottom:0.5rem">Dispensaciones de TAR hasta "Hasta". En negrita, las del elemento analizado, con su cobertura calculada (los solapamientos se desplazan hacia delante). Adelanto = días de medicación que aún le quedaban al recoger; hueco = días sin medicación antes de la recogida.</div>
+    <div class="tabla-wrap"><table><thead><tr><th>Fecha</th><th>Producto</th><th class="num">Cantidad</th><th>Posología</th><th class="num">Días</th><th>Cobertura</th><th class="num">Adelanto</th><th class="num">Hueco</th></tr></thead><tbody>
+    ${det.dispensaciones.map(d => `<tr style="${d.delElemento ? 'font-weight:600' : 'color:var(--texto-sec)'}${d.dia < P.desde ? ';opacity:0.7' : ''}">
+      <td>${fecha(d.dia)}</td><td>${esc(d.producto)}<br><span class="hint" style="font-weight:400">${esc(d.pa)}</span></td><td class="num">${f0(d.cantidad)}</td>
+      <td style="font-weight:400">${esc(d.posologia)}${d.posologiaRespaldo ? ' <span class="badge badge-orange" title="Posología original no interpretable: se usa la más frecuente del producto">respaldo</span>' : ''}</td>
+      <td class="num">${f0(d.suministro)}</td><td>${d.delElemento ? `${fecha(d.cobIni)} – ${fecha(d.cobFin)}` : ''}</td>
+      <td class="num">${d.delElemento && d.adelanto > 0 ? `<span class="${d.adelanto >= P.umbralAdelanto ? 'badge badge-orange' : ''}">${f0(d.adelanto)}</span>` : ''}</td>
+      <td class="num">${d.delElemento && d.hueco > 0 ? `<span class="${d.hueco > P.gracia ? 'badge badge-red' : ''}">${f0(d.hueco)}</span>` : ''}</td></tr>`).join('')}
+    </tbody></table></div>`;
+  $('contenidoPaciente').innerHTML = html;
+  $('modalPaciente').classList.remove('hidden');
+}
+
+// ================================================================
+// METODOLOGÍA
+// ================================================================
+function pintarMetodologia() {
+  const P = E.resultado ? E.resultado.parametros : M.DEFECTO;
+  $('tab-met').innerHTML = `<div class="metodo">
+  <h3>Datos y depuración</h3>
+  <ul>
+    <li>Solo se analizan dispensaciones de TAR (Código Grupo Terapéutico que empieza por <code>J05A</code>). Se eliminan los duplicados exactos.</li>
+    <li>Las <strong>devoluciones</strong> (cantidad negativa) se restan de la dispensación previa más reciente del mismo producto.</li>
+    <li><strong>Días de suministro</strong> = cantidad ÷ unidades por día según la posología (<code>N UNIDAD cada X días/horas…</code>). En las pautas por fases (<code>… a continuación …</code>) se aplica la fase vigente según el tiempo desde la primera dispensación del producto. Si la posología no se puede interpretar, se usa la más frecuente del producto.</li>
+    <li>El fichero no informa de exitus ni traslados: un paciente que deja de recoger medicación sin cambiar de tratamiento se considera no persistente.</li>
+  </ul>
+  <h3>Elementos, cohortes y filtros</h3>
+  <ul>
+    <li>El elemento de análisis es el valor exacto del principio activo o del nombre comercial (los combos no se desglosan), o todo el TAR en el modo "Cualquier TAR".</li>
+    <li><strong>Naive</strong>: inicia el elemento dentro de la ventana sin ninguna dispensación de TAR previa. <strong>Pretratado</strong>: inicia el elemento en la ventana tras haber recibido otro TAR. <strong>En tratamiento estable</strong> (solo PDC): ya recibía el elemento antes de "Desde" y tiene al menos una dispensación dentro de la ventana.</li>
+    <li>"Desde" debe ser al menos ${P.lavadoMeses} meses posterior a la primera dispensación del fichero (lavado, 4 meses por defecto). El lavado puede reducirse a cualquier valor, salvo para analizar pacientes naive (mínimo 4 meses): con menos historia no se puede asegurar que un paciente no haya recibido TAR antes. Los filtros no recortan la historia del paciente: se usa siempre todo su historial hasta "Hasta".</li>
+    <li><strong>Cambio de tratamiento</strong>: el elemento deja de dispensarse y empieza un elemento nuevo (no dispensado en los ${Math.max(M.LAVADO_NAIVE_MIN, P.lavadoMeses)} meses previos; esta ventana no baja de 4 meses aunque se reduzca el lavado). Un fármaco que se dispensa a la vez de forma continuada (p. ej. FTC/TAF con DTG) no es un cambio.</li>
+  </ul>
+  <h3>Adherencia: PDC y MPR</h3>
+  <ul>
+    <li><strong>PDC</strong> = días cubiertos ÷ días del periodo × 100 (máximo 100 %). Las recogidas anticipadas se desplazan hacia delante.</li>
+    <li>Solo cuentan las dispensaciones <strong>dentro de la ventana</strong> (entre "Desde" y "Hasta"): no se arrastra medicación de dispensaciones anteriores. El periodo empieza en la <strong>primera dispensación del elemento en la ventana</strong> y termina el día anterior a la <strong>última</strong>: lo dispensado ese día no se cuenta, porque no se sabe cuándo volverá. Su duración es la fecha de la última dispensación menos la de la primera (ambas fechas del periodo incluyen el primer día y excluyen el último). Si hay cambio de tratamiento, termina el día anterior al cambio.</li>
+    <li>Adherente: PDC ≥ ${P.umbral} %. Periodo mínimo evaluable: ${P.pdcMinDias} días.</li>
+    <li><strong>MPR</strong> = suministro dispensado en el periodo (sin la última recogida) ÷ días del periodo. Puede superar el 100 %. En un tramo que termina por cambio se mide en la última recogida antes del cambio, para no confundir con acumulación la medicación que le quedaba al cambiar.</li>
+    <li><strong>Sobrante</strong>: días de medicación que el paciente conservaba al hacer la última recogida. <strong>Alerta de posible acumulación</strong>: MPR &gt; ${P.umbralMPR} % o sobrante ≥ ${P.umbralSobrante} días.</li>
+  </ul>
+  <h3>Persistencia: Kaplan-Meier</h3>
+  <ul>
+    <li>Pacientes que inician el elemento dentro de la ventana (naive y pretratados). Tiempo 0 = primera dispensación.</li>
+    <li><strong>Evento</strong>: hueco sin medicación mayor que el periodo de gracia (${P.gracia} días), con fecha en el último día cubierto; o cambio de tratamiento, con fecha el día anterior al cambio. Sin evento, se censura en "Hasta".</li>
+    <li>Estimador de Kaplan-Meier con IC 95 % (Greenwood, transformación log-log). Comparación entre elementos con el test log-rank (no válido si un mismo paciente está en varios grupos).</li>
+  </ul>
+  <h3>Referencias</h3>
+  <ul class="hint">
+    <li>Cramer JA, et al. Medication compliance and persistence: terminology and definitions. Value Health. 2008;11:44-7.</li>
+    <li>Vrijens B, et al. A new taxonomy for describing and defining adherence to medications. Br J Clin Pharmacol. 2012;73:691-705.</li>
+    <li>Pharmacy Quality Alliance (PQA). Proportion of Days Covered (PDC) methodology.</li>
+  </ul></div>`;
+}
+
+// ================================================================
+// EXPORTACIÓN
+// ================================================================
+$('btnExcel').addEventListener('click', () => {
+  const r = E.resultado; if (!r) return;
+  const b = $('btnExcel'); b.textContent = 'Preparando…'; b.disabled = true;
+  setTimeout(() => {
+    try {
+      const P = r.parametros, wb = XLSX.utils.book_new();
+      const r1 = v => v === null || v === undefined ? null : Math.round(v * 10) / 10;
+      const hoja = (nombre, filas) => XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filas.length ? filas : [{ '': 'Sin datos' }]), nombre.slice(0, 31));
+      hoja('Parámetros', [
+        ['Fichero', E.nombreFichero], ['Modo', P.modo], ['Elementos', P.modo === 'tar' ? 'Cualquier TAR' : P.elementos.join(' | ')],
+        ['Desde', fecha(P.desde)], ['Hasta', fecha(P.hasta)], ['Cohorte', P.cohorte],
+        ['Servicio', (P.filtros.servicio || []).join(' | ') || 'Todos'], ['Departamento', (P.filtros.dpto || []).join(' | ') || 'Todos'], ['Patología', (P.filtros.patologia || []).join(' | ') || 'Todas'], ['Paciente (Id)', (P.filtros.id || []).join(' | ') || 'Todos'],
+        ['Umbral adherencia (%)', P.umbral], ['Periodo mínimo PDC (días)', P.pdcMinDias], ['Periodo de gracia (días)', P.gracia], ['Lavado (meses)', P.lavadoMeses],
+        ['Alerta MPR (%)', P.umbralMPR], ['Alerta sobrante (días)', P.umbralSobrante], ['Recogida anticipada (días)', P.umbralAdelanto], ['Generado', new Date().toLocaleString('es-ES')]
+      ].map(([Parámetro, Valor]) => ({ Parámetro, Valor })));
+      const resPDC = [];
+      r.resultados.forEach(x => {
+        const add = (coh, s, excl) => resPDC.push({ Elemento: nombreCorto(x.elemento), Cohorte: coh, n: s.n, 'PDC mediana': r1(s.mediana), 'PDC P25': r1(s.p25), 'PDC P75': r1(s.p75), 'PDC media': r1(s.media), Adherentes: s.adherentes, '% adherentes': r1(s.pctAdherentes), 'MPR mediana': r1(s.mprMediana), 'Posible acumulación': s.alertas, 'Excluidos periodo corto': excl });
+        add('Todos', x.pdc.resumen, x.pdc.excluidos.length);
+        ['naive', 'pretratado', 'estable'].forEach(c => add(COHORTE[c], x.pdc.porCohorte[c], null));
+      });
+      hoja('Resumen PDC', resPDC);
+      hoja('PDC pacientes', r.resultados.flatMap(x => x.pdc.pacientes.concat(x.pdc.excluidos.map(p => ({ ...p, _excl: true }))).map(p => ({
+        Elemento: nombreCorto(x.elemento), Id: p.id, Cohorte: COHORTE[p.cohorte], Inicio: fecha(p.inicio), Fin: fecha(p.fin), 'Días periodo': p.dias, 'Días cubiertos': p.cubiertos,
+        PDC: r1(p.pdc), Adherente: p._excl ? 'Excluido (periodo corto)' : p.adherente ? 'Sí' : 'No', MPR: r1(p.mpr), 'Sobrante (días)': p.sobrante, 'Recogidas anticipadas': p.nAdelantos, 'Adelanto máx. (días)': p.maxAdelanto,
+        'Posible acumulación': p.alertaAcumulacion ? 'Sí' : 'No', 'Cambio a': p.cambio ? p.cambio.destino : '', 'Fecha cambio': p.cambio ? fecha(p.cambio.dia) : '', Servicio: p.servicio, Departamento: p.dpto
+      }))));
+      hoja('Resumen persistencia', r.resultados.map(x => {
+        const k = x.persistencia, o = { Elemento: nombreCorto(x.elemento), n: k.km.n, Naive: k.naive, Pretratados: k.pretratados, 'Eventos hueco': k.motivos.hueco, 'Eventos cambio': k.motivos.cambio, Censurados: k.motivos.censura, 'Mediana (meses)': k.km.medianaAlcanzada ? r1(meses(k.km.mediana)) : 'No alcanzada' };
+        k.hitos.forEach(h => { o[`${h.meses} m (%)`] = r1(h.surv * 100); o[`${h.meses} m IC inf`] = r1(h.ciL * 100); o[`${h.meses} m IC sup`] = r1(h.ciU * 100); o[`${h.meses} m en riesgo`] = h.enRiesgo; });
+        return o;
+      }).concat(r.comparacion && r.comparacion.logRank ? [{ Elemento: `Log-rank: chi2=${r1(r.comparacion.logRank.chi2)}, gl=${r.comparacion.logRank.gl}, p=${r.comparacion.logRank.p}` }] : []));
+      hoja('Curva KM', r.resultados.flatMap(x => x.persistencia.km.pasos.map(p => ({ Elemento: nombreCorto(x.elemento), 'Tiempo (días)': p.t, 'Tiempo (meses)': r1(meses(p.t)), 'En riesgo': p.enRiesgo, Eventos: p.eventos, 'Persistencia (%)': Math.round(p.surv * 1000) / 10, 'IC inf (%)': Math.round(p.ciL * 1000) / 10, 'IC sup (%)': Math.round(p.ciU * 1000) / 10 }))));
+      hoja('Persistencia pacientes', r.resultados.flatMap(x => x.persistencia.sujetos.map(s => ({
+        Elemento: nombreCorto(x.elemento), Id: s.id, Cohorte: COHORTE[s.cohorte], 'Tratamiento previo': s.previo ? s.previo.elemento : '', Inicio: fecha(s.inicio), Fin: fecha(s.fechaFin),
+        'Tiempo (días)': s.tiempo, 'Tiempo (meses)': r1(meses(s.tiempo)), Evento: s.evento, Resultado: MOTIVO[s.motivo], 'Cambio a': s.destino || '', Servicio: s.servicio, Departamento: s.dpto
+      }))));
+      hoja('Posible acumulación', filasAcumulacion().map(p => ({ Elemento: nombreCorto(p.elemento), Id: p.id, Cohorte: COHORTE[p.cohorte], Inicio: fecha(p.inicio), Fin: fecha(p.fin), PDC: r1(p.pdc), MPR: r1(p.mpr), 'Sobrante (días)': p.sobrante, 'Recogidas anticipadas': p.nAdelantos, 'Adelanto máx. (días)': p.maxAdelanto })));
+      XLSX.writeFile(wb, `AdherenciaTAR_resultados_${hoyISO()}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      alert('No se ha podido generar el Excel: ' + err.message);
+    } finally { b.textContent = '📥 Excel'; b.disabled = false; }
+  }, 30);
+});
+$('btnImprimir').addEventListener('click', () => window.print());
+
+// ================================================================
+// CONSULTA DE PACIENTE (histórico completo, sin filtros)
+// ================================================================
+function prepararConsultaPaciente() {
+  const ids = M.listaIds(E.datos);
+  $('listaIdsPac').innerHTML = ids.map(id => `<option value="${esc(id)}">`).join('');
+  $('nPacientes').textContent = `${f0(ids.length)} pacientes en el fichero`;
+  $('idPaciente').value = '';
+  $('resultadoPaciente').innerHTML = '';
+  $('panelPaciente').classList.remove('hidden');
+}
+$('btnBuscarPac').addEventListener('click', () => consultarPaciente($('idPaciente').value));
+$('idPaciente').addEventListener('keydown', e => { if (e.key === 'Enter') consultarPaciente($('idPaciente').value); });
+$('idPaciente').addEventListener('change', () => { const v = $('idPaciente').value.trim(); if (v && E.datos.porPaciente.has(v)) consultarPaciente(v); });
+
+function consultarPaciente(id, desplazar = true) {
+  if (!E.datos) return;
+  id = String(id || '').trim();
+  const cont = $('resultadoPaciente');
+  if (!id) { cont.innerHTML = '<div class="msg-aviso">Escribe el Id de un paciente.</div>'; return; }
+  const h = M.historicoPaciente(E.datos, id);
+  $('idPaciente').value = id;
+  if (!h) { cont.innerHTML = `<div class="msg-error">No hay dispensaciones de TAR para el paciente <strong>${esc(id)}</strong> en el fichero cargado.</div>`; return; }
+  E.historico = h;
+  const finFichero = E.datos.fechaMax;
+  const finCob = Math.max(...h.tratamientos.map(t => t.finCobertura));
+  const estado = finCob >= finFichero
+    ? `<span class="badge badge-green">Con medicación al final del fichero</span>`
+    : `<span class="badge badge-orange">Sin medicación desde el ${fecha(finCob + 1)}</span> <span class="hint">(${f0(finFichero - finCob)} días antes del final del fichero)</span>`;
+
+  let html = `<div class="ficha">
+      <div><span class="lbl">Paciente</span><strong>${esc(h.id)}</strong></div>
+      <div><span class="lbl">Primera / última dispensación</span>${fecha(h.primera)} – ${fecha(h.ultima)}</div>
+      <div><span class="lbl">Dispensaciones de TAR</span>${f0(h.nDispensaciones)}${h.devoluciones.length ? ` · ${f0(h.devoluciones.length)} devolución${h.devoluciones.length > 1 ? 'es' : ''}` : ''}</div>
+      <div><span class="lbl">Coste total</span>${h.coste ? h.coste.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '–'}</div>
+      <div><span class="lbl">Servicio</span>${esc(h.servicio || '–')}</div>
+      <div><span class="lbl">Departamento</span>${esc(h.dpto || '–')}</div>
+      <div><span class="lbl">Patología</span>${esc(h.patologia || '–')}</div>
+      <div><span class="lbl">Situación</span>${estado}</div>
+    </div>
+    <div class="acciones no-print" style="margin-bottom:0.5rem">
+      <button class="btn btn-export btn-sm" id="btnExcelPac">📥 Excel del paciente</button>
+      <button class="btn btn-clear btn-sm" id="btnCerrarPac">Cerrar</button>
+    </div>`;
+
+  // En el análisis actual
+  if (E.resultado) {
+    const filas = [];
+    E.resultado.resultados.forEach(x => {
+      const p = x.pdc.pacientes.find(q => q.id === h.id) || x.pdc.excluidos.find(q => q.id === h.id);
+      const s = x.persistencia.sujetos.find(q => q.id === h.id);
+      if (p || s) filas.push({ x, p, s, excl: p && !x.pdc.pacientes.includes(p) });
+    });
+    html += `<h3>En el análisis calculado</h3>`;
+    html += filas.length ? `<div class="tabla-wrap"><table><thead><tr><th>Elemento</th><th>Cohorte</th><th class="num">PDC</th><th class="num">MPR</th><th>Persistencia</th><th></th></tr></thead><tbody>
+      ${filas.map(({ x, p, s, excl }) => `<tr><td>${etiqueta(x.elemento)}</td><td>${COHORTE[(p || s).cohorte]}</td>
+        <td class="num">${p ? (excl ? '<span class="hint">periodo corto</span>' : `<span class="badge ${p.adherente ? 'badge-green' : 'badge-red'}">${f1(p.pdc)} %</span>`) : '–'}</td>
+        <td class="num">${p && !excl ? f1(p.mpr) + (p.alertaAcumulacion ? ' <span class="badge badge-orange">!</span>' : '') : '–'}</td>
+        <td>${s ? `${MOTIVO[s.motivo]} · ${f1(meses(s.tiempo))} m` : '<span class="hint">no inicia en la ventana</span>'}</td>
+        <td><button class="link" data-calculo="${esc(x.elemento)}">Ver cálculo</button></td></tr>`).join('')}
+      </tbody></table></div>` : `<div class="hint">El paciente no entra en el análisis calculado con los filtros actuales.</div>`;
+  }
+
+  html += `<h3>Línea temporal de cobertura</h3><div id="lineaTiempo"></div>
+    <h3>Tratamientos</h3>
+    <div class="tabla-wrap"><table><thead><tr><th>Principio activo</th><th>Producto</th><th>Primera</th><th>Última</th><th>Cubierto hasta</th><th class="num">Disp.</th><th class="num">Días sumin.</th><th class="num">Hueco máx.</th><th class="num">Coste</th></tr></thead><tbody>
+    ${h.tratamientos.map(t => `<tr><td>${esc(t.pa)}</td><td>${t.productos.map(esc).join('<br>')}</td><td>${fecha(t.primera)}</td><td>${fecha(t.ultima)}</td><td>${fecha(t.finCobertura)}</td>
+      <td class="num">${f0(t.dispensaciones)}</td><td class="num">${f0(t.diasSuministrados)}</td><td class="num">${t.huecoMax ? f0(t.huecoMax) + ' d' : '–'}</td><td class="num">${t.coste ? t.coste.toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €' : '–'}</td></tr>`).join('')}
+    </tbody></table></div>
+    <h3>Dispensaciones</h3>
+    <div class="barra-tabla">
+      <div class="campo"><label class="lbl" for="filtroPAPac">Principio activo</label><select id="filtroPAPac"><option value="">Todos</option>${h.tratamientos.map(t => `<option>${esc(t.pa)}</option>`).join('')}</select></div>
+      <div class="campo"><label class="lbl" for="ordenPac">Orden</label><select id="ordenPac"><option value="desc">Más recientes primero</option><option value="asc">Más antiguas primero</option></select></div>
+    </div>
+    <div id="tablaDispPac"></div>
+    <div class="hint" style="margin-top:0.3rem">Cobertura calculada por principio activo desplazando las recogidas anticipadas. Adelanto = días de medicación que aún le quedaban al recoger; hueco = días sin medicación antes de la recogida.</div>`;
+  if (h.devoluciones.length) {
+    html += `<h3>Devoluciones</h3><div class="tabla-wrap"><table><thead><tr><th>Fecha</th><th>Producto</th><th class="num">Unidades</th><th>Descontada de la dispensación del</th></tr></thead><tbody>
+      ${h.devoluciones.map(d => `<tr><td>${fecha(d.dia)}</td><td>${esc(d.producto)}<br><span class="hint">${esc(d.pa)}</span></td><td class="num">${f0(d.cantidad)}</td><td>${d.aplicadaA !== null ? fecha(d.aplicadaA) : '<span class="badge badge-orange">sin dispensación previa</span>'}</td></tr>`).join('')}
+    </tbody></table></div>`;
+  }
+  cont.innerHTML = html;
+  pintarLineaTiempo(h);
+
+  const pintarDisp = () => {
+    const pa = $('filtroPAPac').value;
+    const filas = h.dispensaciones.filter(d => !pa || d.pa === pa);
+    tablaDatos($('tablaDispPac'), filas, [
+      { k: 'dia', t: 'Fecha', f: d => fecha(d.dia) },
+      { k: 'producto', t: 'Producto', f: d => `${esc(d.producto)}<br><span class="hint">${esc(d.pa)}</span>` },
+      { k: 'cantidad', t: 'Cantidad', num: true, f: d => d.cantidad !== d.cantidadOriginal ? `${f0(d.cantidad)} <span class="hint" title="Dispensadas ${d.cantidadOriginal}, descontada una devolución">(${f0(d.cantidadOriginal)})</span>` : f0(d.cantidad) },
+      { k: 'posologia', t: 'Posología', f: d => esc(d.posologia) + (d.posologiaRespaldo ? ` <span class="badge badge-orange" title="Posología registrada: ${esc(d.posologiaOriginal)}">respaldo</span>` : '') },
+      { k: 'suministro', t: 'Días', num: true, f: d => f0(d.suministro) },
+      { k: 'cobIni', t: 'Cobertura', f: d => `${fecha(d.cobIni)} – ${fecha(d.cobFin)}` },
+      { k: 'adelanto', t: 'Adelanto', num: true, f: d => d.adelanto > 0 ? `<span class="${d.adelanto >= (+$('pAdelanto').value || M.DEFECTO.umbralAdelanto) ? 'badge badge-orange' : ''}">${f0(d.adelanto)}</span>` : '' },
+      { k: 'hueco', t: 'Hueco', num: true, f: d => d.hueco > 0 ? `<span class="${d.hueco > (+$('pGracia').value || M.DEFECTO.gracia) ? 'badge badge-red' : ''}">${f0(d.hueco)}</span>` : '' },
+      { k: 'coste', t: 'Coste', num: true, f: d => d.coste === null ? '–' : d.coste.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
+    ], { orden: 'dia', asc: $('ordenPac').value === 'asc', porPagina: 50, unidad: 'dispensaciones' });
+  };
+  $('filtroPAPac').addEventListener('change', pintarDisp);
+  $('ordenPac').addEventListener('change', pintarDisp);
+  pintarDisp();
+  $('btnCerrarPac').addEventListener('click', () => { cont.innerHTML = ''; $('idPaciente').value = ''; });
+  $('btnExcelPac').addEventListener('click', () => exportarPaciente(h));
+  cont.querySelectorAll('[data-calculo]').forEach(b => b.addEventListener('click', () => abrirPaciente(h.id, b.dataset.calculo)));
+  if (desplazar) $('panelPaciente').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function pintarLineaTiempo(h) {
+  const ini = h.primera, fin = Math.max(E.datos.fechaMax, ...h.tratamientos.map(t => t.finCobertura));
+  const rango = Math.max(1, fin - ini + 1);
+  const x = d => ((d - ini) / rango * 1000).toFixed(1);
+  const filas = h.tratamientos.map(t => {
+    const disps = h.dispensaciones.filter(d => d.pa === t.pa);
+    const bloques = [];
+    disps.forEach(d => { const u = bloques[bloques.length - 1]; if (u && d.cobIni <= u.fin + 1) u.fin = Math.max(u.fin, d.cobFin); else bloques.push({ ini: d.cobIni, fin: d.cobFin }); });
+    return `<div class="tl-fila"><div class="tl-lbl">${esc(t.pa)}</div>
+      <svg viewBox="0 0 1000 16" preserveAspectRatio="none" role="img" aria-label="Cobertura de ${esc(t.pa)}">
+        ${bloques.map(b => `<rect x="${x(b.ini)}" y="4" width="${Math.max(1, (b.fin - b.ini + 1) / rango * 1000).toFixed(1)}" height="8" rx="2" fill="#2980b9"><title>Cubierto del ${fecha(b.ini)} al ${fecha(b.fin)}</title></rect>`).join('')}
+        ${disps.map(d => `<line x1="${x(d.dia)}" x2="${x(d.dia)}" y1="1" y2="15" stroke="#1a5276" stroke-width="1.5" vector-effect="non-scaling-stroke"><title>Dispensación ${fecha(d.dia)}: ${f0(d.cantidad)} u. (${f0(d.suministro)} días)</title></line>`).join('')}
+        <line x1="${x(E.datos.fechaMax)}" x2="${x(E.datos.fechaMax)}" y1="0" y2="16" stroke="#e67e22" stroke-width="1.5" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"></line>
+      </svg></div>`;
+  }).join('');
+  // Marcas del eje: años (o semestres si el periodo es corto)
+  const marcas = [];
+  const a0 = +M.diaAISO(ini).slice(0, 4), a1 = +M.diaAISO(fin).slice(0, 4);
+  const anual = a1 - a0 >= 2;
+  for (let a = a0; a <= a1 + 1; a++) {
+    for (const mes of anual ? ['01'] : ['01', '07']) {
+      const d = M.aDia(`${a}-${mes}-01`);
+      if (d >= ini && d <= fin) {
+        const pos = (d - ini) / rango * 100;
+        const tr = pos < 4 ? 'translateX(0)' : pos > 96 ? 'translateX(-100%)' : 'translateX(-50%)';
+        marcas.push(`<span style="left:${pos}%;transform:${tr}">${anual ? a : `${mes === '01' ? 'ene' : 'jul'} ${a}`}</span>`);
+      }
+    }
+  }
+  $('lineaTiempo').innerHTML = `<div class="linea-tiempo">${filas}<div class="tl-fila eje"><div></div><div class="tl-eje">${marcas.join('')}</div></div>
+    <div class="tl-leyenda"><span><i></i>Días con medicación</span><span><i class="disp"></i>Dispensación</span><span><i class="fin"></i>Final del fichero (${fecha(E.datos.fechaMax)})</span></div></div>`;
+}
+
+function exportarPaciente(h) {
+  const wb = XLSX.utils.book_new();
+  const add = (n, filas) => XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filas.length ? filas : [{ '': 'Sin datos' }]), n);
+  add('Resumen', [['Id', h.id], ['Primera dispensación', fecha(h.primera)], ['Última dispensación', fecha(h.ultima)], ['Nº dispensaciones', h.nDispensaciones], ['Coste total (€)', Math.round(h.coste * 100) / 100], ['Servicio', h.servicio], ['Departamento', h.dpto], ['Patología', h.patologia], ['Fichero', E.nombreFichero]].map(([Campo, Valor]) => ({ Campo, Valor })));
+  add('Tratamientos', h.tratamientos.map(t => ({ 'Principio activo': t.pa, Productos: t.productos.join(' | '), Primera: fecha(t.primera), Última: fecha(t.ultima), 'Cubierto hasta': fecha(t.finCobertura), Dispensaciones: t.dispensaciones, Unidades: t.unidades, 'Días suministrados': t.diasSuministrados, 'Hueco máximo (días)': t.huecoMax, 'Coste (€)': Math.round(t.coste * 100) / 100 })));
+  add('Dispensaciones', h.dispensaciones.map(d => ({ Fecha: fecha(d.dia), 'Código producto': d.codProducto, Producto: d.producto, 'Principio activo': d.pa, 'Cantidad dispensada': d.cantidadOriginal, 'Cantidad neta': d.cantidad, 'Posología registrada': d.posologiaOriginal, 'Posología usada': d.posologia, 'Días suministro': d.suministro, 'Cobertura desde': fecha(d.cobIni), 'Cobertura hasta': fecha(d.cobFin), 'Adelanto (días)': d.adelanto, 'Hueco (días)': d.hueco, 'Coste (€)': d.coste, Servicio: d.servicio })));
+  add('Devoluciones', h.devoluciones.map(d => ({ Fecha: fecha(d.dia), Producto: d.producto, 'Principio activo': d.pa, Unidades: d.cantidad, 'Descontada de': d.aplicadaA !== null ? fecha(d.aplicadaA) : 'Sin dispensación previa' })));
+  XLSX.writeFile(wb, `AdherenciaTAR_paciente_${String(h.id).replace(/[^\w-]/g, '_')}_${hoyISO()}.xlsx`);
+}
+
+// ================================================================
+// MODALES
+// ================================================================
+$('btnInfo').addEventListener('click', () => $('modalInfo').classList.remove('hidden'));
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-cerrar]') || e.target.classList.contains('modal-overlay')) document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-historico]');
+  if (!b) return;
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
+  consultarPaciente(b.dataset.historico);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden')); });
+
+if (!M) document.body.insertAdjacentHTML('afterbegin', '<div class="msg-error">No se ha podido cargar el motor de cálculo (motor.js).</div>');
+</script>
+</body>
+</html>
